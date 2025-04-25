@@ -5,40 +5,31 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Scanner from '../components/Scanner';
 import Result from '../components/Result';
 import { motion } from 'framer-motion';
-import api from '../services/api';
+import MedicineVerificationService from '../services/MedicineVerificationService';
 
 const Scan = () => {
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [barcodeData, setBarcodeData] = useState(null);
   const [error, setError] = useState(null);
-  const scannerRef = useRef(null);
+  const verificationService = useRef(new MedicineVerificationService());
 
-  const handleScan = async (barcode) => {
+  const handleScan = async (input) => {
     setScanning(false);
     setLoading(true);
     setError(null);
     
     try {
-      // Simulate API call to backend (replace with real API in production)
-      const response = await api.saveScanResult(barcode);
-      
-      if (response.success) {
-        setBarcodeData({
-          code: barcode,
-          details: response.medicine || null,
-          timestamp: response.timestamp
-        });
-        setResult(response.authentic ? 'verified' : 'counterfeit');
-      } else {
-        setResult('error');
-      }
+      const verificationResult = await verificationService.current.verifyMedicine(input);
+      setResult(verificationResult);
     } catch (err) {
       console.error('Verification error:', err);
       setError('Failed to verify medicine. Please try again.');
-      setResult('error');
+      setResult({
+        status: 'error',
+        message: 'Failed to verify medicine'
+      });
     } finally {
       setLoading(false);
     }
@@ -46,7 +37,6 @@ const Scan = () => {
 
   const handleRetry = () => {
     setResult(null);
-    setBarcodeData(null);
     setError(null);
     setScanning(true);
   };
@@ -99,14 +89,12 @@ const Scan = () => {
             </Box>
           ) : result ? (
             <Result 
-              status={result} 
-              barcode={barcodeData} 
+              result={result}
               onRetry={handleRetry} 
             />
           ) : (
             <Box sx={{ textAlign: 'center' }}>
               <Scanner 
-                ref={scannerRef}
                 onDetected={handleScan}
                 onError={(err) => {
                   setError(`Camera error: ${err.message}`);
